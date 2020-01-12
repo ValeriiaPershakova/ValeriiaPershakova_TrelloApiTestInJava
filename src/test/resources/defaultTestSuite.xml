@@ -1,0 +1,9 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="DefaultTestSuite">
+    <test name="ex1">
+        <classes>
+            <class name="ListTrelloApiTest">
+            </class>
+        </classes>
+    </test>
+</suite>

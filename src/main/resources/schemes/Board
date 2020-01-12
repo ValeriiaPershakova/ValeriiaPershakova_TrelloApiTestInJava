@@ -1,0 +1,41 @@
+{
+  "id": "5612e4f91b25c15e873722b8",
+  "name": "Employee Manual",
+  "desc": "",
+  "closed": false,
+  "idOrganization": "54b58957112602c9a0be7aa3",
+  "pinned": false,
+  "starred": false,
+  "url": "https://trello.com/b/HbTEX5hb/employee-manual",
+  "shortLink": "HbTEX5hb",
+  "lists": [
+    {
+      "id": "5e19fc8b0581c0652350344a",
+      "name": "Список дел",
+      "closed": false,
+      "idBoard": "5e19fc8ba080486f44fa39bf",
+      "pos": 1,
+      "cards": [
+        {
+          "id": "560bf4dd7139286471dc009c",
+          "name": "Grand Canyon National Park",
+          "pos": 0.5,
+          "shortLink": "7K45Byk8",
+          "shortUrl": "https://trello.com/c/7K45Byk8",
+          "url": "https://trello.com/c/7K45Byk8/7-new-card"
+        }
+      ]
+    },
+    {
+      "id": "5e19fc8c639f8277f627ec34",
+      "name": "В процессе",
+      "closed": false,
+      "idBoard": "5e19fc8ba080486f44fa39bf",
+      "pos": 2
+    }
+  ],
+  "dateLastActivity": "2016-01-07T21:24:47.855Z",
+  "dateLastView": "2018-03-12T14:15:20.234Z",
+  "shortUrl": "https://trello.com/b/HbTEX5hb"
+
+}
