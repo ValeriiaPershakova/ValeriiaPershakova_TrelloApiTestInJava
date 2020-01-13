@@ -5,11 +5,14 @@ import core.ListTrelloApi;
 import core.constants.Endpoints;
 import core.constants.Filters;
 import core.constants.Requests;
+import core.constants.TestData;
 import io.restassured.RestAssured;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.Random;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -32,7 +35,7 @@ public class ListTrelloApiTest {
         if (boardsId != null) {
             BOARD_ID = boardsId.get(0);
         } else {
-            throw new RuntimeException("There is no board");
+            throw new RuntimeException("Current user has no board");
         }
     }
 
@@ -49,17 +52,17 @@ public class ListTrelloApiTest {
 
     @Test
     public void addNewListOnBoardTest() {
-
+        String listName = TestData.LIST_NAME + new Random().nextInt();
         ListTrelloApi.with()
                 .request(Requests.POST)
-                .name("New list")
+                .name(listName)
                 .boardId(BOARD_ID)
                 .position("top")
                 .callApi()
                 .then()
                 .specification(BaseAbstractApi.baseSuccessfullResponse);
         allOpenListsOnBoard = ListTrelloApi.getAllListsOnTheBoard(BOARD_ID, Filters.OPEN.getParam());
-        assertThat(allOpenListsOnBoard, hasItem(hasProperty("name", equalTo("New list"))));
+        assertThat(allOpenListsOnBoard, hasItem(hasProperty("name", equalTo(listName))));
     }
 
     @Test
@@ -67,8 +70,8 @@ public class ListTrelloApiTest {
         beans.List list = allOpenListsOnBoard.get(0);
         Integer initialPosition = list.getPos();
 
-        beans.List updatedList = ListTrelloApi.getTrelloList(ListTrelloApi
-                .with()
+        beans.List updatedList = ListTrelloApi.getTrelloList(
+                ListTrelloApi.with()
                 .request(Requests.PUT)
                 .id(list.getId())
                 .position("bottom")
@@ -81,10 +84,10 @@ public class ListTrelloApiTest {
 
     @Test
     public void addNewCardOnTheListTest() {
-
+        String cardName = TestData.CARD_NAME + new Random().nextInt();
         CardTrelloApi.with()
                 .request(Requests.POST)
-                .name("New card")
+                .name(cardName)
                 .listId(allOpenListsOnBoard.get(0).getId())
                 .callApi()
                 .then().specification(BaseAbstractApi.baseSuccessfullResponse)
@@ -92,7 +95,7 @@ public class ListTrelloApiTest {
 
         java.util.List<Card> cardOnTheList = CardTrelloApi.getCardsOnTheList(allOpenListsOnBoard.get(0).getId());
 
-        assertThat(cardOnTheList, hasItem(hasProperty("name", equalTo("New card"))));
+        assertThat(cardOnTheList, hasItem(hasProperty("name", equalTo(cardName))));
     }
 
     @Test
@@ -102,13 +105,15 @@ public class ListTrelloApiTest {
             if (cardsOnTheList != null && cardsOnTheList.size() >= 2) {
                 Card card = cardsOnTheList.get(cardsOnTheList.size() - 1);
                 Double initPosition = card.getPos();
-                Card modifiedCard = CardTrelloApi.getTrelloCard(CardTrelloApi.with()
+                Card modifiedCard = CardTrelloApi.getTrelloCard(
+                        CardTrelloApi.with()
                         .request(Requests.PUT)
                         .id(card.getId())
                         .position("top")
                         .callApi()
                         .then().specification(BaseAbstractApi.baseSuccessfullResponse)
                         .extract().response());
+
                 assertThat(modifiedCard.getPos(), lessThan(initPosition));
                 break;
             } else if (i == allOpenListsOnBoard.size() - 1) {
