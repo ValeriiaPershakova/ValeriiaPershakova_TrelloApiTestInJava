@@ -1,5 +1,6 @@
-package core;
+package core.api;
 
+import core.Utils;
 import core.constants.Endpoints;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.builder.ResponseSpecBuilder;

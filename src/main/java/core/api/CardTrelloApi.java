@@ -1,4 +1,4 @@
-package core;
+package core.api;
 
 import beans.Card;
 import com.google.gson.Gson;

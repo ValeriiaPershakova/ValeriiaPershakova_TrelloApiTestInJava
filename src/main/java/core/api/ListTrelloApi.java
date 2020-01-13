@@ -1,4 +1,4 @@
-package core;
+package core.api;
 
 import beans.Board;
 import beans.List;

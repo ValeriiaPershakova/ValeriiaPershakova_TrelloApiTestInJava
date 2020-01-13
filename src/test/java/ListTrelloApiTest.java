@@ -1,7 +1,7 @@
 import beans.Card;
-import core.BaseAbstractApi;
-import core.CardTrelloApi;
-import core.ListTrelloApi;
+import core.api.BaseAbstractApi;
+import core.api.CardTrelloApi;
+import core.api.ListTrelloApi;
 import core.constants.Endpoints;
 import core.constants.Filters;
 import core.constants.Requests;
