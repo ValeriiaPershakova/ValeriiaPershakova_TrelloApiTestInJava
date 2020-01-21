@@ -73,10 +73,10 @@ public class CardTrelloApi extends BaseAbstractApi {
 
         public Response callApi() {
 
-                return RestAssured.given(baseRequestConfiguration)
-                        .with()
-                        .queryParams(cardTrelloApi.params)
-                        .request(cardTrelloApi.requestMethod, cardTrelloApi.path).prettyPeek();
+            return RestAssured.given(baseRequestConfiguration)
+                    .with()
+                    .queryParams(cardTrelloApi.params)
+                    .request(cardTrelloApi.requestMethod, cardTrelloApi.path).prettyPeek();
 
         }
     }
