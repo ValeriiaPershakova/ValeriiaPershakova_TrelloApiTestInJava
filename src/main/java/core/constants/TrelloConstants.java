@@ -8,6 +8,5 @@ public class TrelloConstants {
     public static final String PARAM_ID = "id";
     public static final String PARAM_CLOSED = "closed";
     public static final String PARAM_FIELD = "field";
-    public static final String PARAM_REQUEST = "request";
 
 }
