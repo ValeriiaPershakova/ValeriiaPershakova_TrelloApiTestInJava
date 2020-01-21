@@ -1,19 +1,21 @@
 import beans.Card;
 import core.api.BaseAbstractApi;
+import core.api.BoardTrelloApi;
 import core.api.CardTrelloApi;
 import core.api.ListTrelloApi;
-import core.constants.Endpoints;
 import core.constants.Filters;
-import core.constants.Requests;
-import core.constants.TestData;
+import core.constants.TrelloConstants;
 import io.restassured.RestAssured;
+import io.restassured.http.Method;
+import io.restassured.response.Response;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Random;
+import java.util.ArrayList;
 
+import static java.lang.String.format;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
@@ -21,151 +23,190 @@ public class ListTrelloApiTest {
     private static String BOARD_ID;
     private static java.util.List<beans.List> allOpenListsOnBoard;
     private static java.util.List<beans.List> allListsOnBoard;
+    private static java.util.List<String> allCreatedBoards = new ArrayList<>();
 
     @BeforeClass
     public void setUp() {
-        RestAssured.baseURI = "https://api.trello.com";
-        RestAssured.basePath = "/1";
-        java.util.List<String> boardsId = RestAssured.given(BaseAbstractApi.baseRequestConfiguration)
-                .get(Endpoints.BOARD_ID).
-                        then().log().all()
-                .extract().response()
-                .jsonPath()
-                .getList("idBoards");
-        if (boardsId != null) {
-            BOARD_ID = boardsId.get(0);
-        } else {
-            throw new RuntimeException("Current user has no board");
-        }
+//        java.util.List<String> boardsId = RestAssured.given(BaseAbstractApi.baseRequestConfiguration)
+//                .get(Endpoints.BOARD_ID).
+//                        then().log().all()
+//                .extract().response()
+//                .jsonPath()
+//                .getList("idBoards");
+//        if (boardsId != null) {
+//            BOARD_ID = boardsId.get(0);
+//        } else {
+//            throw new RuntimeException("Current user has no board");
+//        }
+
     }
 
     @BeforeMethod(alwaysRun = true)
     public void methodSetUp() {
+        BOARD_ID = BoardTrelloApi.createBoard();
+        allCreatedBoards.add(BOARD_ID);
+        ListTrelloApi.createListsOnBoard(BOARD_ID, 3);
         allOpenListsOnBoard = ListTrelloApi.getAllListsOnTheBoard(BOARD_ID, Filters.OPEN.getParam());
         assertThat(allOpenListsOnBoard, not(empty()));
     }
 
     @AfterClass
     public void tearDown() {
+        System.out.println();
+        BoardTrelloApi.deleteBoards(allCreatedBoards);
         RestAssured.reset();
     }
 
     @Test
     public void addNewListOnBoardTest() {
-        String listName = TestData.LIST_NAME + new Random().nextInt();
-        ListTrelloApi.with()
-                .request(Requests.POST)
-                .name(listName)
-                .boardId(BOARD_ID)
-                .position("top")
-                .callApi()
-                .then()
-                .specification(BaseAbstractApi.baseSuccessfullResponse);
+        String id = ListTrelloApi.createListsOnBoard(BOARD_ID, 1).get(0);
+//        String listName = TestData.LIST_NAME + new Random().nextInt();
+//        ListTrelloApi.with()
+//                .request(Method.POST)
+//                .name(listName)
+//                .boardId(BOARD_ID)
+//                .position("top")
+//                .callApi()
+//                .prettyPeek()
+//                .then()
+//                .specification(BaseAbstractApi.baseSuccessfulResponse);
         allOpenListsOnBoard = ListTrelloApi.getAllListsOnTheBoard(BOARD_ID, Filters.OPEN.getParam());
-        assertThat(allOpenListsOnBoard, hasItem(hasProperty("name", equalTo(listName))));
+        assertThat(allOpenListsOnBoard, hasItem(hasProperty(TrelloConstants.PARAM_ID, equalTo(id))));
     }
 
     @Test
     public void changeListPositionTest() {
         beans.List list = allOpenListsOnBoard.get(0);
         Integer initialPosition = list.getPos();
-
-        beans.List updatedList = ListTrelloApi.getTrelloList(
-                ListTrelloApi.with()
-                .request(Requests.PUT)
-                .id(list.getId())
+        Response response = ListTrelloApi.with()
+                .request(Method.PUT)
+                .path(format("/%s", list.getId()))
                 .position("bottom")
                 .callApi()
                 .then()
-                .specification(BaseAbstractApi.baseSuccessfullResponse)
-                .extract().response());
+                .specification(BaseAbstractApi.baseSuccessfulResponse)
+                .extract().response();
+        beans.List updatedList = ListTrelloApi.getTrelloList(response);
+
         assertThat(updatedList.getPos(), greaterThan(initialPosition));
     }
 
     @Test
     public void addNewCardOnTheListTest() {
-        String cardName = TestData.CARD_NAME + new Random().nextInt();
-        CardTrelloApi.with()
-                .request(Requests.POST)
-                .name(cardName)
-                .listId(allOpenListsOnBoard.get(0).getId())
-                .callApi()
-                .then().specification(BaseAbstractApi.baseSuccessfullResponse)
-                .extract().response();
+//        String cardName = TestData.CARD_NAME + new Random().nextInt();
+//        CardTrelloApi.with()
+//                .request(Method.POST)
+//                .name(cardName)
+//                .listId(allOpenListsOnBoard.get(0).getId())
+//                .callApi()
+//                .then().specification(BaseAbstractApi.baseSuccessfulResponse);
+        String listId = (allOpenListsOnBoard.get(0).getId());
+        String cardId = CardTrelloApi.createCardsOnList(listId, 1).get(0);
+        java.util.List<Card> cardOnTheList = CardTrelloApi.getCardsOnTheList(listId);
 
-        java.util.List<Card> cardOnTheList = CardTrelloApi.getCardsOnTheList(allOpenListsOnBoard.get(0).getId());
-
-        assertThat(cardOnTheList, hasItem(hasProperty("name", equalTo(cardName))));
+        assertThat(cardOnTheList, hasItem(hasProperty(TrelloConstants.PARAM_ID, equalTo(cardId))));
     }
 
     @Test
     public void moveCardOnListTest() {
-        for (int i = 0; i < allOpenListsOnBoard.size(); i++) {
-            java.util.List<Card> cardsOnTheList = CardTrelloApi.getCardsOnTheList(allOpenListsOnBoard.get(i).getId());
-            if (cardsOnTheList != null && cardsOnTheList.size() >= 2) {
-                Card card = cardsOnTheList.get(cardsOnTheList.size() - 1);
-                Double initPosition = card.getPos();
-                Card modifiedCard = CardTrelloApi.getTrelloCard(
-                        CardTrelloApi.with()
-                        .request(Requests.PUT)
-                        .id(card.getId())
-                        .position("top")
-                        .callApi()
-                        .then().specification(BaseAbstractApi.baseSuccessfullResponse)
-                        .extract().response());
+        String listId = (allOpenListsOnBoard.get(0).getId());
+        CardTrelloApi.createCardsOnList(listId, 3);
+        java.util.List<Card> cardsOnTheList = CardTrelloApi.getCardsOnTheList(listId);
 
-                assertThat(modifiedCard.getPos(), lessThan(initPosition));
-                break;
-            } else if (i == allOpenListsOnBoard.size() - 1) {
-                assertThat("there is no list with 2 or more cards", false);
-            }
-        }
+        Card card = cardsOnTheList.get(0);
+        Double initPosition = card.getPos();
+        Response response = CardTrelloApi.with()
+                .request(Method.PUT)
+                .path(format("/%s", card.getId()))
+                .position("bottom")
+                .callApi();
+        response
+                .then().specification(BaseAbstractApi.baseSuccessfulResponse);
+        Card modifiedCard = CardTrelloApi.getTrelloCard(response);
+
+        assertThat(modifiedCard.getPos(), greaterThan(initPosition));
+
+//        for (int i = 0; i < allOpenListsOnBoard.size(); i++) {
+//            java.util.List<Card> cardsOnTheList = CardTrelloApi.getCardsOnTheList(allOpenListsOnBoard.get(i).getId());
+//            if (cardsOnTheList != null && cardsOnTheList.size() >= 2) {
+//                Card card = cardsOnTheList.get(cardsOnTheList.size() - 1);
+//                Double initPosition = card.getPos();
+//                ValidatableResponse response = CardTrelloApi.with()
+//                        .request(Method.PUT)
+//                        .id(card.getId())
+//                        .position("top")
+//                        .callApi()
+//                        .then().specification(BaseAbstractApi.baseSuccessfulResponse);
+//                Card modifiedCard = CardTrelloApi.getTrelloCard(response);
+//
+//
+//                assertThat(modifiedCard.getPos(), lessThan(initPosition));
+//                break;
+//            } else if (i == allOpenListsOnBoard.size() - 1) {
+//                assertThat("there is no list with 2 or more cards", false);
+//            }
+//        }
     }
 
     @Test
     public void deleteCardTest() {
-        for (int i = 0; i < allOpenListsOnBoard.size(); i++) {
-            java.util.List<Card> cardsOnTheList = CardTrelloApi.getCardsOnTheList(allOpenListsOnBoard.get(i).getId());
-            if (cardsOnTheList != null) {
-                CardTrelloApi.with()
-                        .request(Requests.DELETE)
-                        .id(cardsOnTheList.get(0).getId())
-                        .callApi()
-                        .then().specification(BaseAbstractApi.baseSuccessfullResponse)
-                        .extract().response();
-                assertThat(CardTrelloApi.getCardsOnTheList(allOpenListsOnBoard.get(i).getId()), hasSize(lessThan(cardsOnTheList.size())));
-                break;
-            } else if (i == allOpenListsOnBoard.size() - 1) {
-                assertThat("there is no list with cards", false);
-            }
-        }
+        String listId = (allOpenListsOnBoard.get(0).getId());
+        CardTrelloApi.createCardsOnList(listId, 2);
+        java.util.List<Card> cardsOnTheList = CardTrelloApi.getCardsOnTheList(listId);
+        String deletedCardId = cardsOnTheList.get(0).getId();
+        CardTrelloApi.with()
+                .request(Method.DELETE)
+                .path(format("/%s", cardsOnTheList.get(0).getId()))
+                .callApi()
+                .then().specification(BaseAbstractApi.baseSuccessfulResponse);
+        assertThat(CardTrelloApi.getCardsOnTheList(listId), not(hasItem(hasProperty(TrelloConstants.PARAM_ID, equalTo(deletedCardId)))));
+
+//        for (int i = 0; i < allOpenListsOnBoard.size(); i++) {
+//            java.util.List<Card> cardsOnTheList = CardTrelloApi.getCardsOnTheList(allOpenListsOnBoard.get(i).getId());
+//            if (cardsOnTheList != null) {
+//                CardTrelloApi.with()
+//                        .request(Method.DELETE)
+//                        .id(cardsOnTheList.get(0).getId())
+//                        .callApi()
+//                        .then().specification(BaseAbstractApi.baseSuccessfulResponse);
+//                assertThat(CardTrelloApi.getCardsOnTheList(allOpenListsOnBoard.get(i).getId()), hasSize(lessThan(cardsOnTheList.size())));
+//                break;
+//            } else if (i == allOpenListsOnBoard.size() - 1) {
+//                assertThat("there is no list with cards", false);
+//            }
+//        }
     }
 
     @Test
     public void archiveListTest() {
-        beans.List modifiedList = ListTrelloApi.getTrelloList(ListTrelloApi.with()
-                .request(Requests.PUT)
-                .id(allOpenListsOnBoard.get(0).getId())
+        Response response = ListTrelloApi.with()
+                .request(Method.PUT)
+                .path(format("/%s", allOpenListsOnBoard.get(0).getId()))
                 .closed(true)
                 .callApi()
-                .then().specification(BaseAbstractApi.baseSuccessfullResponse)
-                .extract().response());
+                .then().specification(BaseAbstractApi.baseSuccessfulResponse)
+                .extract().response();
+        beans.List modifiedList = ListTrelloApi.getTrelloList(response);
         allListsOnBoard = ListTrelloApi.getAllListsOnTheBoard(BOARD_ID, Filters.ALL.getParam());
-        for (beans.List list : allListsOnBoard) {
-            if (list.getId().equals(modifiedList.getId())) {
-                assertThat(modifiedList.getClosed(), is(true));
-                break;
-            }
-        }
+        assertThat(allListsOnBoard, hasItem(hasProperty(TrelloConstants.PARAM_CLOSED, equalTo(true))));
+//        for (beans.List list : allListsOnBoard) {
+//            if (list.getId().equals(modifiedList.getId())) {
+//                assertThat(modifiedList.getClosed(), is(true));
+//                break;
+//            }
+//        }
 
     }
 
     @Test
-    public void deleteListTest() {
+    public void impossibleToDeleteListTest() {
+        String deletedListid = allOpenListsOnBoard.get(0).getId();
         ListTrelloApi.with()
-                .request(Requests.DELETE)
-                .id(allOpenListsOnBoard.get(0).getId())
+                .request(Method.DELETE)
+                .path(format("/%s", deletedListid))
                 .callApi()
                 .then().specification(BaseAbstractApi.notFoundResponse);
+        allOpenListsOnBoard = ListTrelloApi.getAllListsOnTheBoard(BOARD_ID, Filters.ALL.getParam());
+        assertThat(allOpenListsOnBoard, (hasItem(hasProperty(TrelloConstants.PARAM_ID, equalTo(deletedListid)))));
     }
 }

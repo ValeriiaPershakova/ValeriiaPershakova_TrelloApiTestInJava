@@ -4,11 +4,14 @@ import beans.Card;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import core.constants.Endpoints;
-import core.constants.Requests;
+import core.constants.TestData;
 import core.constants.TrelloConstants;
 import io.restassured.RestAssured;
+import io.restassured.http.Method;
 import io.restassured.response.Response;
+import io.restassured.response.ValidatableResponse;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class CardTrelloApi extends BaseAbstractApi {
@@ -16,8 +19,8 @@ public class CardTrelloApi extends BaseAbstractApi {
     }
 
     private HashMap<String, String> params = new HashMap<>();
-    private Requests requestMethod = Requests.GET;
-    private String cardId = null;
+    private Method requestMethod = Method.GET;
+    private String path = Endpoints.CARDS;
 
     public static class ApiBuilder {
         private CardTrelloApi cardTrelloApi;
@@ -46,34 +49,35 @@ public class CardTrelloApi extends BaseAbstractApi {
             return this;
         }
 
-        public ApiBuilder request(Requests req) {
+        public ApiBuilder request(Method req) {
             cardTrelloApi.requestMethod = req;
             return this;
         }
 
+        public ApiBuilder path(String path) {
+            cardTrelloApi.path = cardTrelloApi.path + path;
+            return this;
+        }
+
+        //set id as query parameter. To address exact card (= set as path parameters) change path: ApiBuilder.path("/{card id}")
         public ApiBuilder id(String id) {
-            cardTrelloApi.cardId = id;
+            cardTrelloApi.params.put(TrelloConstants.PARAM_ID, id);
+            return this;
+        }
+
+        public ApiBuilder param(String key, String value) {
+            cardTrelloApi.params.put(key, value);
             return this;
         }
 
 
         public Response callApi() {
 
-            if (cardTrelloApi.cardId != null) {
                 return RestAssured.given(baseRequestConfiguration)
                         .with()
                         .queryParams(cardTrelloApi.params)
-                        .pathParam(TrelloConstants.PARAM_ID, cardTrelloApi.cardId)
-                        .request(cardTrelloApi.requestMethod.toString(), Endpoints.CARD).prettyPeek()
-                        .then()
-                        .specification(baseSuccessfullResponse)
-                        .extract().response();
-            } else {
-                return RestAssured.given(baseRequestConfiguration)
-                        .with()
-                        .queryParams(cardTrelloApi.params)
-                        .request(cardTrelloApi.requestMethod.toString(), Endpoints.CARDS).prettyPeek();
-            }
+                        .request(cardTrelloApi.requestMethod, cardTrelloApi.path).prettyPeek();
+
         }
     }
 
@@ -93,13 +97,32 @@ public class CardTrelloApi extends BaseAbstractApi {
     }
 
     public static java.util.List<Card> getCardsOnTheList(String listId) {
-        return getTrelloCards(ListTrelloApi.with()
-                .request(Requests.GET)
-                .id(listId)
-                .getCards()
-                .callApi()
-                .then().specification(BaseAbstractApi.baseSuccessfullResponse)
-                .extract().response());
+        return getTrelloCards(
+                ListTrelloApi.with()
+                        .request(Method.GET)
+                        .path(String.format("/%s/cards", listId))
+                        .callApi()
+                        .then().specification(BaseAbstractApi.baseSuccessfulResponse)
+                        .extract().response());
+    }
+
+    public static java.util.List<String> createCardsOnList(String listId, int cardsQuantity) {
+        java.util.List<String> cardsId = new ArrayList<>();
+        for (int i = 0; i < cardsQuantity; i++) {
+            String cardName = TestData.CARD_NAME + i;
+            ValidatableResponse response = CardTrelloApi.with()
+                    .request(Method.POST)
+                    .name(cardName)
+                    .listId(listId)
+                    .callApi()
+                    .then().specification(BaseAbstractApi.baseSuccessfulResponse);
+            String id = response
+                    .extract().body()
+                    .jsonPath()
+                    .get(TrelloConstants.PARAM_ID);
+            cardsId.add(id);
+        }
+        return cardsId;
     }
 
 

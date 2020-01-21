@@ -3,13 +3,17 @@ package core.api;
 import beans.Board;
 import beans.List;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import core.constants.Endpoints;
-import core.constants.Requests;
+import core.constants.TestData;
 import core.constants.TrelloConstants;
 import io.restassured.RestAssured;
+import io.restassured.http.Method;
 import io.restassured.response.Response;
+import io.restassured.response.ValidatableResponse;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class ListTrelloApi extends BaseAbstractApi {
@@ -17,9 +21,8 @@ public class ListTrelloApi extends BaseAbstractApi {
     }
 
     private HashMap<String, String> params = new HashMap<>();
-    private Requests requestMethod = Requests.GET;
-    private String listId = null;
-    private boolean getCards = false;
+    private Method requestMethod = Method.GET;
+    private String path = Endpoints.LISTS;
 
     public static class ApiBuilder {
         private ListTrelloApi listTrelloApi;
@@ -43,13 +46,14 @@ public class ListTrelloApi extends BaseAbstractApi {
             return this;
         }
 
-        public ApiBuilder request(Requests req) {
+        public ApiBuilder request(Method req) {
             listTrelloApi.requestMethod = req;
             return this;
         }
 
+        //set id as query parameter. To address exact card (= set as path parameters) change path: ApiBuilder.path("/{list id}")
         public ApiBuilder id(String id) {
-            listTrelloApi.listId = id;
+            listTrelloApi.params.put(TrelloConstants.PARAM_ID, id);
             return this;
         }
 
@@ -58,39 +62,28 @@ public class ListTrelloApi extends BaseAbstractApi {
             return this;
         }
 
-        public ApiBuilder getCards() {
-            listTrelloApi.getCards = true;
-            return this;
-        }
-
         public ApiBuilder closed(Boolean bool) {
             listTrelloApi.params.put(TrelloConstants.PARAM_CLOSED, bool.toString());
             return this;
         }
 
+        public ApiBuilder path(String path) {
+            listTrelloApi.path = listTrelloApi.path + path;
+            return this;
+        }
+
+        public ApiBuilder param(String key, String value) {
+            listTrelloApi.params.put(key, value);
+            return this;
+        }
+
 
         public Response callApi() {
-            if (listTrelloApi.listId != null) {
-                if (listTrelloApi.getCards) {
+            return RestAssured.given(baseRequestConfiguration)
+                    .with()
+                    .queryParams(listTrelloApi.params)
+                    .request(listTrelloApi.requestMethod, listTrelloApi.path).prettyPeek();
 
-                    return RestAssured.given(baseRequestConfiguration)
-                            .with()
-                            .queryParams(listTrelloApi.params)
-                            .pathParam(TrelloConstants.PARAM_ID, listTrelloApi.listId)
-                            .request(listTrelloApi.requestMethod.toString(), Endpoints.LIST + "/cards").prettyPeek();
-                } else {
-                    return RestAssured.given(baseRequestConfiguration)
-                            .with()
-                            .queryParams(listTrelloApi.params)
-                            .pathParam(TrelloConstants.PARAM_ID, listTrelloApi.listId)
-                            .request(listTrelloApi.requestMethod.toString(), Endpoints.LIST).prettyPeek();
-                }
-            } else {
-                return RestAssured.given(baseRequestConfiguration)
-                        .with()
-                        .queryParams(listTrelloApi.params)
-                        .request(listTrelloApi.requestMethod.toString(), Endpoints.LISTS).prettyPeek();
-            }
         }
 
     }
@@ -107,15 +100,36 @@ public class ListTrelloApi extends BaseAbstractApi {
     }
 
     public static java.util.List<beans.List> getAllListsOnTheBoard(String boardId, String filter) {
-        String response = RestAssured.given(baseRequestConfiguration)
+        JsonObject response = RestAssured.given(baseRequestConfiguration)
                 .with()
                 .pathParam(TrelloConstants.PARAM_ID, boardId)
                 .queryParam("lists", filter)
-                .get(Endpoints.BOARD).prettyPeek()
+                .get(Endpoints.BOARD)
+                .prettyPeek()
                 .then()
-                .specification(baseSuccessfullResponse)
-                .extract().response().asString();
-        Board board = new Gson().fromJson(response.trim(), Board.class);
+                .specification(baseSuccessfulResponse)
+                .extract().body().as(JsonObject.class);
+        System.out.println(response);
+        Board board = new Gson().fromJson(response, Board.class);
         return board.getLists();
+    }
+
+    public static java.util.List<String> createListsOnBoard(String boardId, int listQuantity) {
+        java.util.List<String> listsId = new ArrayList<>();
+        for (int i = 0; i < listQuantity; i++) {
+            String listName = TestData.LIST_NAME + i;
+            ValidatableResponse response = ListTrelloApi.with()
+                    .request(Method.POST)
+                    .name(listName)
+                    .boardId(boardId)
+                    .callApi()
+                    .then()
+                    .specification(BaseAbstractApi.baseSuccessfulResponse);
+            String listId = response.extract().body()
+                    .jsonPath()
+                    .get(TrelloConstants.PARAM_ID);
+            listsId.add(listId);
+        }
+        return listsId;
     }
 }
